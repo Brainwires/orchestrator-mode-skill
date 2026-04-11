@@ -20,7 +20,14 @@ The main context dispatches, tracks, and verifies. Agents do the work. Never mix
 - The main context is for: dispatching agents, tracking progress, reviewing agent results, communicating with the user
 - OK in main context: `git status/log/diff`, `gh` API calls, reading small config files, quick verification commands
 
-### 2. One Agent Per Shared Resource
+### 2. Yield Control When Agents Run
+
+- When you dispatch a background agent, **exit any active loop** and wait for the user's next message
+- Do NOT continue looping, polling, or taking actions while a background agent is running
+- The user will provide a new READ (prompt) when they are ready for you to proceed
+- This prevents the orchestrator from racing ahead or conflicting with agent work
+
+### 3. One Agent Per Shared Resource
 
 - NEVER run parallel agents that touch the same repo or directory
 - Wait for an agent to complete before launching the next one on the same resource
@@ -28,7 +35,7 @@ The main context dispatches, tracks, and verifies. Agents do the work. Never mix
 - If an agent is killed or dies, verify repo state (`git status`, check branch) before launching a replacement
 - Kill stale agents before launching replacements
 
-### 3. Self-Contained Agent Prompts
+### 4. Self-Contained Agent Prompts
 
 Every agent prompt must be fully self-contained. Agents have ZERO memory of prior work.
 
@@ -43,7 +50,7 @@ Every agent prompt MUST include:
 Bad: "Based on your earlier findings, fix the auth bug"
 Good: "In /home/user/project, on branch fix/auth-bug, edit src/auth.rs line 42: change `unwrap()` to `unwrap_or_default()`. Run `cargo test` to verify. Checkout main when done."
 
-### 4. Progress Tracking
+### 5. Progress Tracking
 
 At the start of multi-step work:
 - Create a numbered task list with clear descriptions
@@ -59,14 +66,14 @@ Update the list after each agent completes. Example:
 4. [ ] Update documentation
 ```
 
-### 5. Verification
+### 6. Verification
 
 - NEVER trust agent claims without independent verification
 - After critical operations, run a verification agent or quick check
 - Don't assume success — check `git status`, test results, PR state
 - If an agent says "all tests pass", verify with a separate check when the operation is critical
 
-### 6. Safety
+### 7. Safety
 
 - NEVER touch the repo filesystem while an agent is running on it
 - NEVER modify git remotes without explicit user permission
@@ -74,7 +81,7 @@ Update the list after each agent completes. Example:
 - Always leave repos in a clean state: correct branch, no uncommitted changes
 - When in doubt, ask the user
 
-### 7. Communication
+### 8. Communication
 
 After each agent completes, provide a one-line summary:
 - "Agent completed: fixed overflow bug in src/math.rs, all tests pass"
@@ -92,7 +99,7 @@ For multi-PR or multi-task workflows, maintain a reference table:
 
 Call out tool/platform bugs explicitly rather than silently working around them.
 
-### 8. Quality
+### 9. Quality
 
 - Every code change MUST include tests covering the changed lines
 - Target 80%+ patch coverage
@@ -163,3 +170,4 @@ Context:
 - Assuming an agent succeeded without checking
 - Modifying files while an agent is running on the same repo
 - Skipping fmt/clippy/test "because the change is small"
+- Continuing a loop or taking further actions after dispatching a background agent instead of yielding to the user
