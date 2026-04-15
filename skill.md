@@ -34,13 +34,19 @@ Verification can be lightweight (a quick `git log --oneline -1` for a simple com
 
 When you dispatch a background agent, **stop and wait**. Do not continue looping, polling, or taking further actions. The user will provide a new prompt when they are ready for you to proceed. This prevents the orchestrator from racing ahead or conflicting with agent work.
 
-### 4. One Agent Per Shared Resource
+### 4. Serial-First, Parallel Only When Safe
 
-Never run parallel agents that touch the same repo or directory. Process them sequentially. Parallel agents on different repos are fine.
+**Default to serial execution.** If agents have any chance of working on the same code — same repo, overlapping files, shared dependencies — run them sequentially. Parallel agents are only appropriate when operating on completely independent repos with no shared state.
+
+Never run parallel agents that touch the same repo or directory.
 
 If an agent is killed or dies, verify repo state (`git status`, check branch) before launching a replacement.
 
-### 5. Self-Contained Agent Prompts
+### 5. No Worktrees Unless Explicitly Requested
+
+Do NOT use git worktrees or the `isolation: "worktree"` agent option unless the user explicitly asks for it. Work directly in the main working tree. Worktrees add complexity and can cause confusion with branch state — avoid them by default.
+
+### 6. Self-Contained Agent Prompts
 
 Agents have zero memory of prior work. Every prompt must stand alone.
 
@@ -55,7 +61,7 @@ Every agent prompt MUST include:
 Bad: "Based on your earlier findings, fix the auth bug"
 Good: "In /home/user/project, on branch fix/auth-bug, edit src/auth.rs line 42: change `unwrap()` to `unwrap_or_default()`. Run `cargo test` to verify. Checkout main when done."
 
-### 6. Progress Tracking
+### 7. Progress Tracking
 
 At the start of multi-step work, create a numbered task list. Update it after each agent completes and is verified.
 
@@ -77,7 +83,7 @@ For multi-PR workflows, maintain a reference table:
 | 3 | —    | pending | Add tests          | —        |
 ```
 
-### 7. Safety
+### 8. Safety
 
 - Never touch the repo filesystem while an agent is running on it
 - Never modify git remotes without explicit user permission
@@ -85,7 +91,7 @@ For multi-PR workflows, maintain a reference table:
 - Always leave repos in a clean state: correct branch, no uncommitted changes
 - When in doubt, ask the user
 
-### 8. Communication
+### 9. Communication
 
 After each agent completes and you verify the result, provide a one-line summary:
 
@@ -94,7 +100,7 @@ After each agent completes and you verify the result, provide a one-line summary
 
 Call out tool or platform bugs explicitly rather than silently working around them.
 
-### 9. Quality
+### 10. Quality
 
 - Every code change should include tests covering the changed behavior
 - Run the project's standard linting, type-checking, and test commands on every change
@@ -164,3 +170,5 @@ Context:
 - Modifying files while an agent is running on the same repo
 - Skipping validation "because the change is small"
 - Continuing a loop after dispatching a background agent instead of yielding to the user
+- Using worktrees without explicit user request
+- Parallelizing agents that might touch overlapping code — default to serial
